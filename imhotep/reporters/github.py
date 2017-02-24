@@ -8,8 +8,10 @@ log = logging.getLogger(__name__)
 class GitHubReporter(Reporter):
     def __init__(self, requester, repo_name):
         self._comments = []
-        self.repo_name = repo_name
         self.requester = requester
+        self.requester_login = requester.get_user().login
+        org, repo = repo_name.split('/')
+        self.repo = requester.get_organization(org).get_repo(repo)
 
     def clean_already_reported(self, comments, file_name, position,
                                message):
@@ -18,23 +20,13 @@ class GitHubReporter(Reporter):
         converted into a string.
         """
         for comment in comments:
-            if ((comment['path'] == file_name and
-                 comment['position'] == position and
-                 comment['user']['login'] == self.requester.username)):
+            if (comment.path == file_name and
+                comment.user.login == self.requester.username and
+                (comment.position == position or
+                 comment.original_position == position)):
+                return [m for m in message if m not in comment.body]
 
-                return [m for m in message if m not in comment['body']]
         return message
-
-    def get_comments(self, report_url):
-        if not self._comments:
-            log.debug("PR Request: %s", report_url)
-            result = self.requester.get(report_url)
-            if result.status_code >= 400:
-                log.error("Error requesting comments from github. %s",
-                          result.json())
-                return self._comments
-            self._comments = result.json()
-        return self._comments
 
     def convert_message_to_string(self, message):
         """Convert message from list to string for GitHub API."""
@@ -45,54 +37,44 @@ class GitHubReporter(Reporter):
 
 
 class CommitReporter(GitHubReporter):
+    def __init__(self, requester, repo_name, commit):
+        super(PRReporter, self).__init__(requester, repo_name)
+        self.commit = self.repo.get_commit(commit)
+
     def report_line(self, commit, file_name, line_number, position, message):
-        report_url = (
-            'https://api.github.com/repos/%s/commits/%s/comments'
-            % (self.repo_name, commit))
-        comments = self.get_comments(report_url)
+        comments = self.commit.get_comments()
         message = self.clean_already_reported(comments, file_name,
                                               position, message)
-        payload = {
-            'body': self.convert_message_to_string(message),
-            'sha': commit,
-            'path': file_name,
-            'position': position,
-            'line': None,
-        }
-        log.debug("Commit Request: %s", report_url)
-        log.debug("Commit Payload: %s", payload)
-        self.requester.post(report_url, payload)
+
+        self.commit.create_comment(
+            body=self.convert_message_to_string(message),
+            commit_id=commit,
+            path=file_name,
+            position=position)
 
 
 class PRReporter(GitHubReporter):
     def __init__(self, requester, repo_name, pr_number):
-        self.pr_number = pr_number
         super(PRReporter, self).__init__(requester, repo_name)
+        self.pr = self.repo.get_pull(pr_number)
 
     def report_line(self, commit, file_name, line_number, position, message):
-        report_url = (
-            'https://api.github.com/repos/%s/pulls/%s/comments'
-            % (self.repo_name, self.pr_number))
-        comments = self.get_comments(report_url)
+        comments = self.pr.get_comments()
         if isinstance(message, string_types):
             message = [message]
+
         message = self.clean_already_reported(comments, file_name,
                                               position, message)
+
         if not message:
             log.debug('Message already reported')
             return None
-        payload = {
-            'body': self.convert_message_to_string(message),
-            'commit_id': commit,  # sha
-            'path': file_name,  # relative file path
-            'position': position,  # line index into the diff
-        }
-        log.debug("PR Request: %s", report_url)
-        log.debug("PR Payload: %s", payload)
-        result = self.requester.post(report_url, payload)
-        if result.status_code >= 400:
-            log.error("Error posting line to github. %s", result.json())
-        return result
+
+        self.pr.create_comment(
+            body=self.convert_message_to_string(message),
+            commit_id=commit,
+            path=file_name,
+            position=position)
 
     def post_comment(self, message):
         """

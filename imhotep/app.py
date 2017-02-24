@@ -3,6 +3,7 @@ from collections import defaultdict
 import glob
 import logging
 import subprocess
+import github.MainClass
 
 import pkg_resources
 
@@ -11,7 +12,6 @@ from .reporters.printing import PrintingReporter
 from .reporters.github import CommitReporter, PRReporter
 from .diff_parser import DiffContextParser
 from .shas import get_pr_info, CommitInfo
-from imhotep import http
 from .errors import UnknownTools, NoCommitInfo
 
 
@@ -158,9 +158,7 @@ class Imhotep(object):
 
 
 def gen_imhotep(**kwargs):
-    # TODO(justinabrahms): Interface should have a "are creds valid?" method
-    req = http.BasicAuthRequester(kwargs['github_username'],
-                                  kwargs['github_password'])
+    req = github.MainClass.Github(kwargs['github_token'])
 
     plugins = load_plugins()
     tools = get_tools(kwargs['linter'], plugins)
@@ -234,11 +232,8 @@ def parse_args(args):
         action='store_true',
         help="Will dump debugging output and won't clean up after itself.")
     arg_parser.add_argument(
-        '--github-username',
-        help='Github user to post comments as.')
-    arg_parser.add_argument(
-        '--github-password',
-        help='Github password for the above user.')
+        '--github-token',
+        help='Github token')
     arg_parser.add_argument(
         '--no-post',
         action="store_true",
