@@ -80,11 +80,21 @@ class PRReporter(GitHubReporter):
         """
         Comments on an issue, not on a particular line.
         """
-        report_url = (
-            'https://api.github.com/repos/%s/issues/%s/comments'
-            % (self.repo_name, self.pr_number)
-        )
-        result = self.requester.post(report_url, {'body': message})
-        if result.status_code >= 400:
-            log.error("Error posting comment to github. %s", result.json())
-        return result
+        self.pr.create_issue_comment(message)
+
+    def pre_report(self):
+        commit = self.pr.head.repo.get_commit(self.pr.head.sha)
+        commit.create_status('pending', description='Checking the style',
+                             context='linter/imhotep')
+
+    def post_report(self, violations):
+        if violations > 0:
+            status = 'failure'
+            description = 'The linting failed'
+        else:
+            status = 'success'
+            description = 'The linting passed'
+
+        commit = self.pr.head.repo.get_commit(self.pr.head.sha)
+        commit.create_status(status, description=description,
+                             context='linter/imhotep')

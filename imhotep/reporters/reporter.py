@@ -13,3 +13,9 @@ class Reporter(object):
     def report_line(self, commit, file_name, line_number, position,
                     message):
         raise NotImplementedError()
+
+    def pre_report(self):
+        raise NotImplementedError()
+
+    def post_report(self, violations):
+        raise NotImplementedError()

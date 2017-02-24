@@ -109,6 +109,7 @@ class Imhotep(object):
             reporter = self.get_reporter()
 
         try:
+            reporter.pre_report()
             repo = self.manager.clone_repo(self.repo_name,
                                            remote_repo=cinfo.remote_repo,
                                            ref=cinfo.ref)
@@ -153,6 +154,7 @@ class Imhotep(object):
                         "There were too many ({error_count}) linting errors to"
                         " continue.".format(error_count=error_count))
                 log.info("%d violations.", error_count)
+            reporter.post_report(error_count)
         finally:
             self.manager.cleanup()
 
