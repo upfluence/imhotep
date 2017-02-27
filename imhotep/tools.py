@@ -48,7 +48,7 @@ class Tool(object):
                 # extension. Different from the else-case below.
                 return {}
 
-            to_find = ' -o '.join(['-samefile "%s"' % f for f in filenames])
+            to_find = ' -o '.join(['-samefile "%s/%s"' % (dirname, f) for f in filenames])
         else:
             to_find = ' -o '.join(['-name "*%s"' % ext
                                    for ext in self.get_file_extensions()])
@@ -65,6 +65,7 @@ class Tool(object):
                 if filename.startswith(dirname):
                     filename = filename[len(dirname) + 1:]
                 retval[filename][lineno].append(messages)
+        print retval
         return retval
 
     def process_line(self, dirname, line):
