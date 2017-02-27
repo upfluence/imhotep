@@ -21,7 +21,7 @@ class GitHubReporter(Reporter):
         """
         for comment in comments:
             if (comment.path == file_name and
-                comment.user.login == self.requester.username and
+                comment.user.login == self.requester_login and
                 (comment.position == position or
                  comment.original_position == position)):
                 return [m for m in message if m not in comment.body]
@@ -72,7 +72,7 @@ class PRReporter(GitHubReporter):
 
         self.pr.create_comment(
             body=self.convert_message_to_string(message),
-            commit_id=commit,
+            commit_id=self.repo.get_commit(commit),
             path=file_name,
             position=position)
 
