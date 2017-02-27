@@ -127,7 +127,7 @@ class Imhotep(object):
                 added_lines = [l.number for l in entry.added_lines]
                 if not entry.added_lines:
                     continue
-                pos_map = {0: min(l.position for l in entry.added_lines)}
+                pos_map = {0: min([l.position for l in entry.added_lines])}
                 for x in entry.added_lines:
                     pos_map[x.number] = x.position
 
